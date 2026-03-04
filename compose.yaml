@@ -1,0 +1,7 @@
+﻿services:
+  request:
+    image: request
+    build:
+      context: .
+      dockerfile: ReQuest/Dockerfile
+
