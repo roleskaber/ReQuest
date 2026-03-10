@@ -1,15 +1,12 @@
 using System.Collections.Generic;
-using ReQuest.Controllers.Database.UserAnswer;
+using ReQuest_backend.Server.TriviaAPI.DTO;
+using ReQuest_backend.Server.Database.UserAnswer;
 
 namespace ReQuest_backend.Server.Database.Quest;
 
 public class QuestEntity
 {
     public long Id { get; set; }
-    public required string Type { get; set; }
-    public required string Difficulty { get; set; }
-    public required string Category { get; set; }
-    public required string Text { get; set; }
-    public required string CorrectAnswer { get; set; }
-    public required List<UserAnswerEntity> UserAnswers { get; set; }
+    public QuestionResponse? Body { get; set; } = null;
+    public ICollection<UserAnswerEntity> UserAnswers { get; set; } = new List<UserAnswerEntity>();
 }

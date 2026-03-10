@@ -21,7 +21,7 @@ public class UserRepository(UserContext db)
         var user = await Db.UserEntities.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return null;
         
-        return mode == QuestionMode.ANSWERED
+        return mode == QuestionMode.Answered
             ? user.AnsweredQuests
             : user.CreatedQuests;
     }
@@ -31,7 +31,7 @@ public class UserRepository(UserContext db)
         var user = await Db.UserEntities.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return null;
 
-        if (mode == QuestionMode.ANSWERED) user.AnsweredQuests.Add(quest);
+        if (mode == QuestionMode.Answered) user.AnsweredQuests.Add(quest);
         else user.CreatedQuests.Add(quest);
         await Db.SaveChangesAsync();
 
