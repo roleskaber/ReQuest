@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "ReQuest | Вход";
+    var apiBaseUrl = (string?)ViewData["BackendApiBaseUrl"] ?? "http://localhost:5134";
+}
+
+<section class="hero auth-page" data-api-base-url="@apiBaseUrl" id="auth-app">
+    <div class="panel">
+        <p class="hero__kicker">Доступ в кабинет</p>
+        <h1>Вход или регистрация</h1>
+        <form id="auth-form" class="quest-form" novalidate>
+            <label class="field">
+                <span>Режим</span>
+                <select id="auth-mode">
+                    <option value="login">Вход</option>
+                    <option value="register">Регистрация</option>
+                </select>
+            </label>
+
+            <label class="field">
+                <span>Имя</span>
+                <input id="auth-name" type="text" minlength="2" maxlength="32" required />
+            </label>
+
+            <label class="field">
+                <span>Email</span>
+                <input id="auth-email" type="email" maxlength="64" required />
+            </label>
+
+            <button type="submit" class="btn-main">Продолжить</button>
+        </form>
+        <p class="panel-note" id="auth-status">После входа откроется кабинет.</p>
+    </div>
+</section>

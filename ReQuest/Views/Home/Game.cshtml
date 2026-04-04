@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "ReQuest | Игра";
+    var apiBaseUrl = (string?)ViewData["BackendApiBaseUrl"] ?? "http://localhost:5134";
+}
+
+<section class="hero" data-api-base-url="@apiBaseUrl" id="quest-app">
+    <div class="hero__intro">
+        <p class="hero__kicker">Играй как в Kahoot</p>
+        <h1>ReQuest</h1>
+        <p class="hero__lead">
+            Создай игру с вопросами.
+        </p>
+        <div class="mode-actions">
+            <button id="open-create" type="button" class="btn-main">Создать вопросы</button>
+            <a class="btn-secondary" asp-controller="Home" asp-action="Index">Присоединиться на Home</a>
+        </div>
+    </div>
+
+    <div class="game-workspace" id="game-workspace">
+        <div class="panel panel--control create-panel hidden" id="create-panel">
+            <h2>Создать игру</h2>
+            <form id="create-game-form" class="quest-form" novalidate>
+                <label class="field">
+                    <span>Имя ведущего</span>
+                    <input type="text" id="host-name" minlength="2" maxlength="32" required />
+                </label>
+
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" id="host-email" maxlength="64" required />
+                </label>
+
+                <label class="field">
+                    <span>Количество вопросов</span>
+                    <input type="number" id="count" min="1" max="50" value="10" required />
+                </label>
+
+                <label class="field">
+                    <span>Сложность</span>
+                    <select id="difficulty">
+                        <option value="">Любая</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span>Тип ответа</span>
+                    <select id="choice">
+                        <option value="">Любой</option>
+                        <option value="multiple">Multiple choice</option>
+                        <option value="boolean">True / False</option>
+                    </select>
+                </label>
+
+                <div class="actions">
+                    <button type="submit" class="btn-main">Создать игру</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="create-side hidden" id="create-side">
+            <div class="generation-tracker" id="generation-tracker">
+                <div class="generation-preview" id="generation-preview"></div>
+            </div>
+
+            <div class="panel panel--results create-lobby" id="lobby-panel">
+                <div class="results-head">
+                    <h2>Лобби</h2>
+                    <span id="status" class="status">Готово к работе</span>
+                </div>
+                <div class="lobby-code" id="lobby-code">Код: -</div>
+                <div id="lobby-host" class="lobby-meta">Ведущий: -</div>
+                <div id="lobby-questions" class="lobby-meta">Вопросов: -</div>
+                <h3 class="players-title">Игроки</h3>
+                <ul id="players-list" class="players-list"></ul>
+            </div>
+        </div>
+    </div>
+</section>

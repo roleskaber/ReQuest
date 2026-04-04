@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "ReQuest | Кабинет";
+}
+
+<section class="hero cabinet-page" id="cabinet-app">
+    <div class="panel">
+        <p class="hero__kicker">Личный кабинет</p>
+        <h1 id="cabinet-title">Привет!</h1>
+        <p class="hero__lead">Выбери действие.</p>
+        <div class="mode-actions">
+            <a class="btn-main" asp-controller="Home" asp-action="Game">Создать игру</a>
+            <a class="btn-secondary" asp-controller="Home" asp-action="History">История запросов</a>
+        </div>
+    </div>
+</section>
