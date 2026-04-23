@@ -163,6 +163,9 @@ public class GameController : ControllerBase
     [HttpPost("start")]
     public ActionResult<GameStateResponse> Start([FromBody] GameCodeRequest request)
     {
+        var hostCheck = EnsureHost(request.Code, request.HostName);
+        if (hostCheck != null) return hostCheck;
+
         var state = _gameSessionStore.Start(request.Code.Trim());
         if (state == null) return NotFound("Игра с таким кодом не найдена.");
 
@@ -172,7 +175,46 @@ public class GameController : ControllerBase
     [HttpPost("next")]
     public ActionResult<GameStateResponse> NextQuestion([FromBody] GameCodeRequest request)
     {
+        var hostCheck = EnsureHost(request.Code, request.HostName);
+        if (hostCheck != null) return hostCheck;
+
         var state = _gameSessionStore.NextQuestion(request.Code.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("finish")]
+    public ActionResult<GameStateResponse> Finish([FromBody] GameCodeRequest request)
+    {
+        var hostCheck = EnsureHost(request.Code, request.HostName);
+        if (hostCheck != null) return hostCheck;
+
+        var state = _gameSessionStore.Finish(request.Code.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("kick")]
+    public ActionResult<GameStateResponse> KickPlayer([FromBody] KickPlayerRequest request)
+    {
+        var hostCheck = EnsureHost(request.Code, request.HostName);
+        if (hostCheck != null) return hostCheck;
+
+        var state = _gameSessionStore.KickPlayer(request.Code.Trim(), request.PlayerName.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("remove-question")]
+    public ActionResult<GameStateResponse> RemoveQuestion([FromBody] RemoveQuestionRequest request)
+    {
+        var hostCheck = EnsureHost(request.Code, request.HostName);
+        if (hostCheck != null) return hostCheck;
+
+        var state = _gameSessionStore.RemoveQuestion(request.Code.Trim(), request.QuestionIndex);
         if (state == null) return NotFound("Игра с таким кодом не найдена.");
 
         return Ok(MapState(state));
@@ -218,6 +260,19 @@ public class GameController : ControllerBase
             state.Scores,
             state.AnsweredPlayers
         );
+    }
+
+    private ActionResult<GameStateResponse>? EnsureHost(string code, string hostName)
+    {
+        var session = _gameSessionStore.Get(code.Trim());
+        if (session == null) return NotFound("Игра с таким кодом не найдена.");
+
+        if (!string.Equals(session.HostName, hostName.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, "Только ведущий может выполнить это действие.");
+        }
+
+        return null;
     }
 
     private async Task WriteSseEvent(string eventName, object payload, CancellationToken cancellationToken)

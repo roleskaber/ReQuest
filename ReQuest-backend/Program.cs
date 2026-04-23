@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using ReQuest_backend.Server;
 using ReQuest_backend.Server.Auth;
 using ReQuest_backend.Server.Database.Quest;
@@ -34,21 +30,20 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddHttpClient<TriviaApiService>();
 builder.Services.AddHttpClient<QuestionTranslationService>();
-builder.Services.AddDbContext<QuestContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContextFactory<QuestContext>(options =>
+    options.UseNpgsql(connectionString));
+builder.Services.AddDbContextFactory<QuestContext>(options => 
+    options.UseNpgsql(connectionString));
 builder.Services.AddSingleton<IGameSessionStore, GameSessionStore>();
 builder.Services.AddSingleton<IAuthTokenService, AuthTokenService>();
 builder.Services.AddScoped<IQuestRepository, QuestRepository>();
 builder.Services.AddScoped<IQuestService, QuestService>();
+
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
         var builtInFactory = options.InvalidModelStateResponseFactory;
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            var logger = context.HttpContext.RequestServices
-                .GetRequiredService<ILogger<Program>>();
-            return builtInFactory(context);
-        };
+        options.InvalidModelStateResponseFactory = context => builtInFactory(context);
     });
 
 var app = builder.Build();

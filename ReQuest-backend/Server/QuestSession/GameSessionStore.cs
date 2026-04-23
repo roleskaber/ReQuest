@@ -1,14 +1,19 @@
-using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using ReQuest_backend.Server.Database.Quest;
 
 namespace ReQuest_backend.Server.QuestSession;
 
 public class GameSessionStore : IGameSessionStore
 {
-    private readonly ConcurrentDictionary<string, GameSession> _sessions = new();
+    private readonly IDbContextFactory<QuestContext> _dbContextFactory;
     private readonly Random _random = new();
+
+    public GameSessionStore(IDbContextFactory<QuestContext> dbContextFactory)
+    {
+        _dbContextFactory = dbContextFactory;
+    }
 
     public event GameSessionCreatedEventHandler? SessionCreated;
     public event PlayerJoinedGameSessionEventHandler? PlayerJoined;
@@ -16,33 +21,50 @@ public class GameSessionStore : IGameSessionStore
     public GameSession Create(string hostName, List<long> questionIds)
     {
         var code = GenerateUniqueCode();
+
         var session = new GameSession
         {
             Code = code,
             HostName = hostName,
             QuestionIds = questionIds,
-            Players = [hostName],
-            Scores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-            {
-                [hostName] = 0
-            },
+            Players = [],
+            Scores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             AnsweredPlayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             CurrentQuestionIndex = -1,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        _sessions[code] = session;
+        using var db = _dbContextFactory.CreateDbContext();
+        var entity = new GameSessionEntity
+        {
+            Code = session.Code,
+            HostName = session.HostName,
+            QuestionIdsJson = JsonSerializer.Serialize(session.QuestionIds),
+            PlayersJson = JsonSerializer.Serialize(session.Players),
+            ScoresJson = JsonSerializer.Serialize(session.Scores),
+            AnsweredPlayersJson = JsonSerializer.Serialize(session.AnsweredPlayers),
+            CurrentQuestionIndex = session.CurrentQuestionIndex,
+            IsStarted = session.IsStarted,
+            IsFinished = session.IsFinished,
+            CreatedAt = session.CreatedAt
+        };
+
+        db.GameSessions.Add(entity);
+        db.SaveChanges();
+
         SessionCreated?.Invoke(this, new GameSessionCreatedEventArgs(session.Code, session.HostName, session.QuestionIds.Count));
         return session;
     }
 
     public GameSession? Join(string code, string playerName)
     {
-        if (!_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return null;
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
 
         var added = false;
 
-        lock (session)
+        if (!playerName.Equals(session.HostName, StringComparison.OrdinalIgnoreCase))
         {
             var alreadyJoined = session.Players.Any(p => p.Equals(playerName, StringComparison.OrdinalIgnoreCase));
             if (!alreadyJoined)
@@ -52,6 +74,8 @@ public class GameSessionStore : IGameSessionStore
                 added = true;
             }
         }
+
+        if (added) SaveSession(db, session);
 
         if (added)
         {
@@ -64,79 +88,188 @@ public class GameSessionStore : IGameSessionStore
 
     public GameSession? Get(string code)
     {
-        if (_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return session;
-        return null;
+        using var db = _dbContextFactory.CreateDbContext();
+        return LoadSession(db, code);
     }
 
     public GameSessionState? GetState(string code)
     {
-        if (!_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return null;
-
-        lock (session)
-        {
-            return BuildState(session);
-        }
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        return session == null ? null : BuildState(session);
     }
 
     public GameSessionState? Start(string code)
     {
-        if (!_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return null;
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
 
-        lock (session)
+        session.IsStarted = true;
+        session.IsFinished = false;
+        session.CurrentQuestionIndex = session.QuestionIds.Count > 0 ? 0 : -1;
+        session.AnsweredPlayers.Clear();
+
+        foreach (var player in session.Players)
         {
-            session.IsStarted = true;
-            session.IsFinished = false;
-            session.CurrentQuestionIndex = session.QuestionIds.Count > 0 ? 0 : -1;
-            session.AnsweredPlayers.Clear();
-
-            foreach (var player in session.Players)
-            {
-                session.Scores[player] = 0;
-            }
-
-            return BuildState(session);
+            session.Scores[player] = 0;
         }
+
+        SaveSession(db, session);
+        return BuildState(session);
     }
 
     public GameSessionState? NextQuestion(string code)
     {
-        if (!_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return null;
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
 
-        lock (session)
+        if (!session.IsStarted || session.QuestionIds.Count == 0) return BuildState(session);
+
+        if (session.CurrentQuestionIndex >= session.QuestionIds.Count - 1)
         {
-            if (!session.IsStarted || session.QuestionIds.Count == 0) return BuildState(session);
-
-            if (session.CurrentQuestionIndex >= session.QuestionIds.Count - 1)
-            {
-                session.IsFinished = true;
-                session.AnsweredPlayers.Clear();
-                return BuildState(session);
-            }
-
-            session.CurrentQuestionIndex += 1;
+            session.IsFinished = true;
             session.AnsweredPlayers.Clear();
+            SaveSession(db, session);
             return BuildState(session);
         }
+
+        session.CurrentQuestionIndex += 1;
+        session.AnsweredPlayers.Clear();
+        SaveSession(db, session);
+        return BuildState(session);
+    }
+
+    public GameSessionState? Finish(string code)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
+
+        session.IsFinished = true;
+        session.AnsweredPlayers.Clear();
+        SaveSession(db, session);
+        return BuildState(session);
+    }
+
+    public GameSessionState? KickPlayer(string code, string playerName)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
+
+        if (playerName.Equals(session.HostName, StringComparison.OrdinalIgnoreCase)) return BuildState(session);
+
+        var existingPlayer = session.Players.FirstOrDefault(p => p.Equals(playerName, StringComparison.OrdinalIgnoreCase));
+        if (existingPlayer == null) return BuildState(session);
+
+        session.Players.Remove(existingPlayer);
+        session.Scores.Remove(existingPlayer);
+        session.AnsweredPlayers.Remove(existingPlayer);
+        SaveSession(db, session);
+        return BuildState(session);
+    }
+
+    public GameSessionState? RemoveQuestion(string code, int questionIndex)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
+
+        if (questionIndex < 0 || questionIndex >= session.QuestionIds.Count) return BuildState(session);
+        if (session.QuestionIds.Count <= 1) return BuildState(session);
+
+        session.QuestionIds.RemoveAt(questionIndex);
+
+        if (session.CurrentQuestionIndex > questionIndex)
+        {
+            session.CurrentQuestionIndex -= 1;
+        }
+
+        if (session.CurrentQuestionIndex >= session.QuestionIds.Count)
+        {
+            session.CurrentQuestionIndex = session.QuestionIds.Count - 1;
+        }
+
+        if (session.QuestionIds.Count == 0)
+        {
+            session.CurrentQuestionIndex = -1;
+            session.IsFinished = true;
+        }
+
+        session.AnsweredPlayers.Clear();
+        SaveSession(db, session);
+        return BuildState(session);
     }
 
     public GameSessionState? SubmitAnswer(string code, string playerName, bool isCorrect)
     {
-        if (!_sessions.TryGetValue(code.ToUpperInvariant(), out var session)) return null;
+        using var db = _dbContextFactory.CreateDbContext();
+        var session = LoadSession(db, code);
+        if (session == null) return null;
 
-        lock (session)
+        if (!session.IsStarted || session.IsFinished) return BuildState(session);
+        if (session.CurrentQuestionIndex < 0 || session.CurrentQuestionIndex >= session.QuestionIds.Count) return BuildState(session);
+        if (!session.Players.Any(p => p.Equals(playerName, StringComparison.OrdinalIgnoreCase))) return BuildState(session);
+
+        var firstAnswer = session.AnsweredPlayers.Add(playerName);
+        if (!firstAnswer) return BuildState(session);
+
+        if (!session.Scores.ContainsKey(playerName)) session.Scores[playerName] = 0;
+        if (isCorrect) session.Scores[playerName] += 1;
+
+        SaveSession(db, session);
+        return BuildState(session);
+    }
+
+    private GameSession? LoadSession(QuestContext db, string code)
+    {
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        var entity = db.GameSessions.AsNoTracking().FirstOrDefault(s => s.Code == normalizedCode);
+        return entity == null ? null : ToDomain(entity);
+    }
+
+    private static void SaveSession(QuestContext db, GameSession session)
+    {
+        var normalizedCode = session.Code.Trim().ToUpperInvariant();
+        var entity = db.GameSessions.FirstOrDefault(s => s.Code == normalizedCode);
+        if (entity == null) return;
+
+        entity.HostName = session.HostName;
+        entity.QuestionIdsJson = JsonSerializer.Serialize(session.QuestionIds);
+        entity.PlayersJson = JsonSerializer.Serialize(session.Players);
+        entity.ScoresJson = JsonSerializer.Serialize(session.Scores);
+        entity.AnsweredPlayersJson = JsonSerializer.Serialize(session.AnsweredPlayers);
+        entity.CurrentQuestionIndex = session.CurrentQuestionIndex;
+        entity.IsStarted = session.IsStarted;
+        entity.IsFinished = session.IsFinished;
+
+        db.SaveChanges();
+    }
+
+    private static GameSession ToDomain(GameSessionEntity entity)
+    {
+        var questionIds = JsonSerializer.Deserialize<List<long>>(entity.QuestionIdsJson) ?? [];
+        var players = JsonSerializer.Deserialize<List<string>>(entity.PlayersJson) ?? [];
+        var scores = JsonSerializer.Deserialize<Dictionary<string, int>>(entity.ScoresJson)
+                     ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var answeredPlayers = JsonSerializer.Deserialize<HashSet<string>>(entity.AnsweredPlayersJson)
+                              ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        return new GameSession
         {
-            if (!session.IsStarted || session.IsFinished) return BuildState(session);
-            if (session.CurrentQuestionIndex < 0 || session.CurrentQuestionIndex >= session.QuestionIds.Count) return BuildState(session);
-            if (!session.Players.Any(p => p.Equals(playerName, StringComparison.OrdinalIgnoreCase))) return BuildState(session);
-
-            var firstAnswer = session.AnsweredPlayers.Add(playerName);
-            if (!firstAnswer) return BuildState(session);
-
-            if (!session.Scores.ContainsKey(playerName)) session.Scores[playerName] = 0;
-            if (isCorrect) session.Scores[playerName] += 1;
-
-            return BuildState(session);
-        }
+            Code = entity.Code,
+            HostName = entity.HostName,
+            QuestionIds = questionIds,
+            Players = players,
+            Scores = new Dictionary<string, int>(scores, StringComparer.OrdinalIgnoreCase),
+            AnsweredPlayers = new HashSet<string>(answeredPlayers, StringComparer.OrdinalIgnoreCase),
+            CurrentQuestionIndex = entity.CurrentQuestionIndex,
+            IsStarted = entity.IsStarted,
+            IsFinished = entity.IsFinished,
+            CreatedAt = entity.CreatedAt
+        };
     }
 
     private static GameSessionState BuildState(GameSession session)
@@ -156,6 +289,8 @@ public class GameSessionStore : IGameSessionStore
 
     private string GenerateUniqueCode()
     {
+        using var db = _dbContextFactory.CreateDbContext();
+
         while (true)
         {
             var chars = new char[6];
@@ -165,7 +300,8 @@ public class GameSessionStore : IGameSessionStore
             }
 
             var code = new string(chars);
-            if (!_sessions.ContainsKey(code)) return code;
+            var exists = db.GameSessions.AsNoTracking().Any(s => s.Code == code);
+            if (!exists) return code;
         }
     }
 }

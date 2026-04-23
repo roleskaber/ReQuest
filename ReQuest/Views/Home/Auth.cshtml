@@ -5,7 +5,7 @@
 
 <section class="hero auth-page" data-api-base-url="@apiBaseUrl" id="auth-app">
     <div class="auth-stack">
-        <div class="panel auth-card" id="register-card">
+        <div class="panel auth-card auth-card--hidden" id="register-card" data-auth-card="register" aria-hidden="true">
             <p class="hero__kicker">Доступ в кабинет</p>
             <h1>Регистрация</h1>
             <p class="panel-note">Создай профиль, чтобы сохранить прогресс и возвращаться в кабинет.</p>
@@ -25,12 +25,12 @@
 
                 <p class="auth-switch">
                     Уже есть аккаунт?
-                    <a href="#login-card">Войти</a>
+                    <a href="#" data-auth-switch="login">Войти</a>
                 </p>
             </form>
         </div>
 
-        <div class="panel auth-card auth-card--login" id="login-card">
+        <div class="panel auth-card auth-card--login" id="login-card" data-auth-card="login" aria-hidden="false">
             <p class="hero__kicker">Вход</p>
             <h2>Вход</h2>
             <p class="panel-note">Войди в существующий профиль, чтобы продолжить игру.</p>
@@ -50,7 +50,7 @@
 
                 <p class="auth-switch">
                     Нет аккаунта?
-                    <a href="#register-card">Зарегистрироваться</a>
+                    <a href="#" data-auth-switch="register">Зарегистрироваться</a>
                 </p>
             </form>
         </div>

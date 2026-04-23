@@ -13,5 +13,8 @@ public interface IGameSessionStore
     GameSessionState? GetState(string code);
     GameSessionState? Start(string code);
     GameSessionState? NextQuestion(string code);
+    GameSessionState? Finish(string code);
+    GameSessionState? KickPlayer(string code, string playerName);
+    GameSessionState? RemoveQuestion(string code, int questionIndex);
     GameSessionState? SubmitAnswer(string code, string playerName, bool isCorrect);
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using ReQuest.Models;
 
@@ -15,12 +16,13 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
+        ViewData["BackendApiBaseUrl"] = ResolveBackendApiBaseUrl();
         return View();
     }
 
     public IActionResult Auth()
     {
-        ViewData["BackendApiBaseUrl"] = _configuration["BackendApi:BaseUrl"] ?? "http://localhost:5134";
+        ViewData["BackendApiBaseUrl"] = ResolveBackendApiBaseUrl();
         return View();
     }
 
@@ -36,8 +38,31 @@ public class HomeController : Controller
 
     public IActionResult Game()
     {
-        ViewData["BackendApiBaseUrl"] = _configuration["BackendApi:BaseUrl"] ?? "http://localhost:5134";
+        ViewData["BackendApiBaseUrl"] = ResolveBackendApiBaseUrl();
         return View();
+    }
+
+    private string ResolveBackendApiBaseUrl()
+    {
+        var configuredUrl = _configuration["BackendApi:BaseUrl"] ?? "http://localhost:5134";
+        if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var backendUri)) return configuredUrl;
+
+        var isLoopbackHost = string.Equals(backendUri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+                             || IPAddress.TryParse(backendUri.Host, out var parsedIp) && IPAddress.IsLoopback(parsedIp);
+
+        var requestHost = HttpContext.Request.Host.Host;
+        var hasRemoteRequestHost = !string.IsNullOrWhiteSpace(requestHost)
+                                   && !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase)
+                                   && !(IPAddress.TryParse(requestHost, out var requestIp) && IPAddress.IsLoopback(requestIp));
+
+        if (!isLoopbackHost || !hasRemoteRequestHost) return configuredUrl;
+
+        var builder = new UriBuilder(backendUri)
+        {
+            Host = requestHost
+        };
+
+        return builder.Uri.GetLeftPart(UriPartial.Authority);
     }
 
     public IActionResult Privacy()

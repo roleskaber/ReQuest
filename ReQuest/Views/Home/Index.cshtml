@@ -1,5 +1,6 @@
 ﻿@{
     ViewData["Title"] = "ReQuest | Старт";
+    var apiBaseUrl = (string?)ViewData["BackendApiBaseUrl"] ?? "http://localhost:5134";
 }
 
 <section class="hero landing" id="landing-app">
@@ -12,7 +13,7 @@
         </div>
     </div>
 
-    <div class="panel join-home-panel" id="join-home-app">
+    <div class="panel join-home-panel" id="join-home-app" data-api-base-url="@apiBaseUrl">
         <h2>Присоединиться к игре</h2>
         <p class="panel-note">Ввод кода доступен только с главной страницы.</p>
         <form id="join-home-form" class="quest-form" novalidate>

@@ -220,6 +220,10 @@ main[role="main"] > section {
   margin: 0 auto;
 }
 
+.auth-card--hidden {
+  display: none;
+}
+
 .auth-card--login {
   width: min(100%, 480px);
 }
@@ -340,6 +344,11 @@ main[role="main"] > section {
   align-items: start;
 }
 
+.game-workspace.is-active.game-workspace--player {
+  grid-template-columns: minmax(360px, 860px);
+  justify-content: center;
+}
+
 .create-panel {
   width: 100%;
   max-width: 1120px;
@@ -381,6 +390,39 @@ main[role="main"] > section {
 .create-panel.read-only .game-control {
   display: grid;
   gap: 0.9rem;
+}
+
+.admin-tools {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-tools h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.btn-danger {
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 50, 45, 0.45);
+  background: rgba(184, 50, 45, 0.08);
+  color: #8a1d1a;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.35rem 0.75rem;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .create-side .generation-tracker {
@@ -540,6 +582,10 @@ main[role="main"] > section {
   .game-workspace.is-active {
     grid-template-columns: minmax(320px, 1fr) minmax(360px, 0.95fr);
     align-items: start;
+  }
+
+  .game-workspace.is-active.game-workspace--player {
+    grid-template-columns: minmax(360px, 0.95fr);
   }
 
   .game-workspace.is-active .generation-tracker {
