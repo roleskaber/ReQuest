@@ -2,15 +2,15 @@
 
 :root {
   --bg-sand: #f8f4e8;
-  --bg-accent: #f1d7b8;
+  --bg-accent: #b8eaf1;
   --ink: #1f2933;
   --ink-soft: #536271;
   --card: #fffdf8;
-  --line: #e8dbc5;
-  --brand: #cf5a2e;
-  --brand-dark: #9f3d1f;
+  --line: #c5cde8;
+  --brand: #2e8ccf;
+  --brand-dark: #1f6a9f;
   --ok: #1f7a5a;
-  --danger: #b8322d;
+  --danger: #2db8b3;
   --shadow: 0 16px 40px rgba(56, 41, 24, 0.12);
 }
 
@@ -167,7 +167,6 @@ main[role="main"] > section {
 .btn-main {
   color: #fff;
   background: var(--brand);
-  box-shadow: 0 10px 22px rgba(207, 90, 46, 0.35);
 }
 
 .btn-main:hover {
@@ -488,8 +487,8 @@ main[role="main"] > section {
   display: inline-block;
   margin-bottom: 0.45rem;
   border-radius: 999px;
-  background: #f8f1e5;
-  color: #6a5439;
+  background: #b8eaf1;
+  color: #39566a;
   padding: 0.2rem 0.55rem;
   font-size: 0.72rem;
   font-weight: 700;

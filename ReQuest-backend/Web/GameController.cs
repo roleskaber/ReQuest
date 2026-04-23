@@ -81,6 +81,7 @@ public class GameController : ControllerBase
 
         if (questionIds.Count == 0)
         {
+            
             await WriteSseEvent("error", new { message = "Не удалось сохранить вопросы для игры." }, cancellationToken);
             return;
         }
